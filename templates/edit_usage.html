@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Изменить вариант использования</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .back { margin-bottom: 20px; }
+        input { padding: 10px; margin: 8px 0; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 12px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        button.secondary { background: #6c757d; }
+        .note { font-size: 14px; color: #666; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="back">
+        <a href="/"><button class="secondary">← Назад</button></a>
+    </div>
+
+    <h2>✏️ Изменить вариант использования</h2>
+    <div class="note">Измени чтение или перевод существующего варианта использования</div>
+
+    <form action="/edit-usage" method="post">
+        <div>
+            <label>ID варианта использования <span class="required">*</span>:</label>
+            <input type="number" name="usage_id" placeholder="" required>
+            <div class="note">ID можно посмотреть на странице результатов поиска</div>
+        </div>
+
+        <div>
+            <label>Новое чтение:</label>
+            <input type="text" name="new_reading" placeholder="">
+            <div class="note">Оставь пустым, если не нужно менять</div>
+        </div>
+
+        <div>
+            <label>Новый перевод:</label>
+            <input type="text" name="new_translation" placeholder="">
+            <div class="note">Оставь пустым, если не нужно менять</div>
+        </div>
+
+        <button type="submit">💾 Сохранить изменения</button>
+    </form>
+</body>
+</html>

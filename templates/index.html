@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Японский словарь</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .search-box, .action-box { margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 10px; }
+        input, button, select { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        .hieroglyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-top: 20px; }
+        .hieroglyph { padding: 20px; background: white; border: 2px solid #e0e0e0; text-align: center; font-size: 24px; cursor: pointer; transition: all 0.3s; }
+        .hieroglyph:hover { border-color: #4CAF50; transform: scale(1.05); }
+        .action-buttons { display: flex; gap: 10px; margin: 10px 0; }
+        .action-buttons a { flex: 1; }
+        .action-buttons button { width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Изученное</h1>
+    </div>
+
+    <div class="search-box">
+        <h3>🔍 Найти иероглифы и значения</h3>
+        <form action="/search" method="post">
+            <input type="text" name="hieroglyph" placeholder="Введи кандзи" required>
+            <button type="submit">Найти</button>
+        </form>
+    </div>
+
+    <div class="action-box">
+        <h3>⚡ Действия</h3>
+        <div class="action-buttons">
+            <a href="/add-hieroglyph"><button>➕ Добавить иероглиф</button></a>
+            <a href="/add-usage"><button>📝 Добавить вариант</button></a>
+            <a href="/edit-usage"><button>✏️ Изменить вариант</button></a>
+        </div>
+    </div>
+
+    <h3>📚 Все иероглифы ({{ words|length }})</h3>
+    {% if words %}
+    <div class="hieroglyph-grid">
+        {% for word in words %}
+        <div class="hieroglyph" onclick="searchHieroglyph('{{ word.hieroglyph }}')">
+            {{ word.hieroglyph }}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="text-align: center; color: #666; padding: 40px;">
+        Пока нет иероглифов(
+    </p>
+    {% endif %}
+
+    <script>
+        function searchHieroglyph(hieroglyph) {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/search';
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'hieroglyph';
+            input.value = hieroglyph;
+
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+</body>
+</html>

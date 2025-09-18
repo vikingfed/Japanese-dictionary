@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Добавить иероглиф</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .back { margin-bottom: 20px; }
+        .usage-group { background: #f9f9f9; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px dashed #ccc; }
+        input { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 12px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        button.secondary { background: #6c757d; }
+        .required { color: red; }
+        .note { font-size: 14px; color: #666; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="back">
+        <a href="/"><button class="secondary">← Назад</button></a>
+    </div>
+
+    <h2>➕ Добавить новый иероглиф</h2>
+
+    <form action="/add-hieroglyph" method="post">
+        <div>
+            <label>Иероглиф <span class="required">*</span>:</label>
+            <input type="text" name="hieroglyph" placeholder="" required>
+            <div class="note">Введи один или несколько иероглифов</div>
+        </div>
+
+        <h3>Варианты использования <span class="required">*</span>:</h3>
+        <div class="note">Первый вариант обязателен, остальные - опционально</div>
+
+        <div class="usage-group">
+            <input type="text" name="usage" placeholder="Вариант использования" required>
+            <input type="text" name="reading" placeholder="Чтение" required>
+            <input type="text" name="translation" placeholder="Перевод" required>
+        </div>
+
+        <div class="usage-group">
+            <input type="text" name="usage" placeholder="Дополнительный вариант">
+            <input type="text" name="reading" placeholder="Чтение">
+            <input type="text" name="translation" placeholder="Перевод">
+        </div>
+
+        <div class="usage-group">
+            <input type="text" name="usage" placeholder="Еще вариант">
+            <input type="text" name="reading" placeholder="Чтение">
+            <input type="text" name="translation" placeholder="Перевод">
+        </div>
+
+        <button type="submit">💾 Сохранить иероглиф</button>
+    </form>
+</body>
+</html>
