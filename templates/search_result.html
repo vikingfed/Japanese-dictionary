@@ -12,6 +12,15 @@
         .reading { color: #666; margin: 5px 0; }
         .translation { color: #444; }
         .no-data { text-align: center; color: #666; padding: 40px; }
+        .delete-section { margin: 30px 0; padding: 20px; background: #fff3f3; border: 1px solid #ffcccc; border-radius: 10px; }
+        .delete-button { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .delete-button:hover { background: #c82333; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 15% auto; padding: 20px; border-radius: 10px; width: 400px; text-align: center; }
+        .modal-buttons { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
+        .modal-buttons button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .confirm-btn { background: #dc3545; color: white; }
+        .cancel-btn { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
@@ -37,5 +46,47 @@
             <a href="/add-usage"><button>➕ Добавить вариант</button></a>
         </div>
     {% endif %}
+
+    <!-- Секция удаления -->
+    <div class="delete-section">
+        <h3>⚡ Опасная зона</h3>
+        <p>Удаление иероглифа невозможно отменить</p>
+        <button class="delete-button" onclick="showDeleteModal()">🗑️ Удалить иероглиф</button>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>Уверена?</h3>
+            <p>Ты собираешься удалить иероглиф <strong>"{{ data.hieroglyphs }}"</strong> и все его варианты использования.</p>
+            <p>Пути назад нет</p>
+
+            <div class="modal-buttons">
+                <form id="deleteForm" action="/delete-hieroglyph" method="post">
+                    <input type="hidden" name="hieroglyph" value="{{ data.hieroglyphs }}">
+                    <button type="submit" class="confirm-btn">Да, удалить</button>
+                </form>
+                <button class="cancel-btn" onclick="hideDeleteModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+
+        function hideDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        // Закрытие модального окна при клике вне его
+        window.onclick = function(event) {
+            const modal = document.getElementById('deleteModal');
+            if (event.target === modal) {
+                hideDeleteModal();
+            }
+        }
+    </script>
 </body>
 </html>

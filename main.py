@@ -46,7 +46,11 @@ def search_hieroglyph(
 ):
     searched_data = database.get_by_hieroglyph(hieroglyph)
     if not searched_data:
-        raise HTTPException(status_code=404, detail='Что ты там ищешь-то?')
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Иероглиф "{hieroglyph}" не найден в словаре',
+            'back_url': '/'
+        }, status_code=404)
 
     return templates.TemplateResponse("search_result.html", {
         'request': request,
@@ -61,6 +65,7 @@ def add_hieroglyph_form(request: Request):
 
 @app.post('/add-hieroglyph')
 def add_full_hieroglyph(
+        request: Request,
         hieroglyph: str = Form(...),
         usage: List[str] = Form(...),
         reading: List[str] = Form(...),
@@ -76,7 +81,11 @@ def add_full_hieroglyph(
             })
 
     if not usages:
-        raise HTTPException(status_code=400, detail='А где?')
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': 'Добавьте хотя бы один вариант использования',
+            'back_url': '/add-hieroglyph'
+        }, status_code=400)
 
     try:
         hieroglyph_data = CreateHieroglyph(
@@ -84,11 +93,21 @@ def add_full_hieroglyph(
             usages=[Usage(**u) for u in usages]
         )
     except Exception as ex:
-        raise HTTPException(status_code=400, detail=f'Некорректно введены данные: {ex}')
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Некорректные данные: {ex}',
+            'back_url': '/add-hieroglyph'
+        }, status_code=400)
 
-
-    database.add_card(hieroglyph_data.hieroglyph, usages)
-    return RedirectResponse(url='/', status_code=303)
+    try:
+        database.add_card(hieroglyph_data.hieroglyph, usages)
+        return RedirectResponse(url='/', status_code=303)
+    except Exception as ex:
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Ошибка при добавлении в базу: {ex}',
+            'back_url': '/add-hieroglyph'
+        }, status_code=500)
 
 
 @app.get('/add-usage')
@@ -98,6 +117,7 @@ def add_usage_form(request: Request):
 
 @app.post('/add-usage')
 def add_single_usage(
+        request: Request,
         hieroglyph: str = Form(...),
         usage: str = Form(...),
         reading: str = Form(...),
@@ -106,9 +126,21 @@ def add_single_usage(
     try:
         usage_data = Usage(usage=usage, reading=reading, translation=translation)
     except Exception as ex:
-        raise HTTPException(status_code=400, detail=f'Некорректно введены данные: {ex}')
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Некорректные данные: {ex}',
+            'back_url': '/add-usage'
+        }, status_code=400)
 
-    database.add_one_usage(hieroglyph, usage_data.usage, usage_data.reading, usage_data.translation)
+
+    success = database.add_one_usage(hieroglyph, usage_data.usage, usage_data.reading, usage_data.translation)
+    if not success:
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Иероглиф "{hieroglyph}" не найден в словаре',
+            'back_url': '/add-usage'
+        }, status_code=404)
+
     return RedirectResponse(url='/', status_code=303)
 
 
@@ -119,17 +151,55 @@ def edit_usage_form(request: Request):
 
 @app.post('/edit-usage')
 def edit_usage(
-    usage_id: int,
-    new_reading: Optional[str] = None,
-    new_translation: Optional[str] = None
+    request: Request,
+    usage_id: int = Form(...),
+    new_reading: Optional[str] = Form(None),
+    new_translation: Optional[str] = Form(None)
 ):
+    if not new_reading and not new_translation:
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': 'Укажите хотя бы одно поле для изменения',
+            'back_url': '/edit-usage'
+        }, status_code=400)
+
     try:
         update_data = UpdateUsage(new_reading=new_reading, new_translation=new_translation)
     except Exception as ex:
-        raise HTTPException(status_code=400, detail=f'Некорректно введены данные: {ex}')
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Некорректные данные: {ex}',
+            'back_url': '/edit-usage'
+        }, status_code=400)
 
-    database.edit_card_by_usage_id(usage_id, update_data.new_reading, update_data.new_translation)
+    success = database.edit_card_by_usage_id(usage_id, update_data.new_reading, update_data.new_translation)
+
+    if not success:
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Вариант использования с ID {usage_id} не найден',
+            'back_url': '/edit-usage'
+        }, status_code=404)
+
     return RedirectResponse(url='/', status_code=303)
+
+
+@app.post('/delete-hieroglyph')
+def delete_hieroglyph_info(
+        request: Request,
+        hieroglyph: str = Form(...)
+):
+    success = database.delete_hieroglyph(hieroglyph)
+
+    if not success:
+        return templates.TemplateResponse("error.html", {
+            'request': request,
+            'error_message': f'Иероглиф "{hieroglyph}" не найден',
+            'back_url': '/'
+        }, status_code=404)
+
+    return RedirectResponse(url='/', status_code=303)
+
 
 
 

@@ -11,6 +11,7 @@ def init_database():
                 hieroglyph TEXT NOT NULL UNIQUE
             )
         ''')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS usages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,14 +45,14 @@ def get_by_hieroglyph(hieroglyph: str):
         fetched_data = cursor.fetchone()
 
         if not fetched_data:
-            return False
+            return None
 
         cursor.execute('''
             SELECT id, usage, reading, translation
             FROM usages 
             WHERE hieroglyph_id = ? 
             ORDER BY id
-        ''', (fetched_data['id'])
+        ''', (fetched_data['id'], )
         )
 
         usages = [dict(row) for row in cursor.fetchall()] # список словарей, где ключи - айди варианта, вариант использования, чтение и перевод
@@ -70,7 +71,12 @@ def add_card(hieroglyph: str, usages: List[Dict]):
         )
 
         cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph, ))
-        hieroglyph_id = cursor.fetchone()[0] # эта функция возвращает кортеж, fetchall() - список кортежей
+        result = cursor.fetchone()
+
+        if not result:
+            raise ValueError("Не удалось добавить или найти иероглиф")
+
+        hieroglyph_id = result[0] # эта функция возвращает кортеж, fetchall() - список кортежей
 
         for usage in usages:
             cursor.execute(
@@ -86,10 +92,14 @@ def edit_card_by_usage_id(usage_id: int,
                               new_reading: Optional[str] = None,
                               new_translation: Optional[str] = None):
     if not new_reading and not new_translation:
-        return 'А почему пусто-то?'
+        return False
 
     with sqlite3.connect('japanese.db') as connection:
         cursor = connection.cursor()
+        cursor.execute('SELECT id FROM usages WHERE id = ?', (usage_id,))
+        if not cursor.fetchone():
+            return False
+
         if new_reading:
             cursor.execute('''
                 UPDATE usages SET reading = ? WHERE id = ?
@@ -102,6 +112,7 @@ def edit_card_by_usage_id(usage_id: int,
             )
 
         connection.commit()
+        return True
 
 
 def add_one_usage(hieroglyph: str,
@@ -110,11 +121,16 @@ def add_one_usage(hieroglyph: str,
                   translation: str):
     with sqlite3.connect('japanese.db') as connection:
         cursor = connection.cursor()
+
         cursor.execute('''
             SELECT id FROM hieroglyphs WHERE hieroglyph = ?
         ''', (hieroglyph, )
-        )
-        hieroglyph_id = cursor.fetchone()[0]
+                       )
+        result = cursor.fetchone()
+        if not result:
+            return False
+
+        hieroglyph_id = result[0]
 
         cursor.execute('''
             INSERT INTO usages
@@ -123,4 +139,30 @@ def add_one_usage(hieroglyph: str,
         ''', (hieroglyph_id, new_usage, reading, translation))
 
         connection.commit()
+        return True
 
+
+def delete_hieroglyph(hieroglyph: str):
+    with sqlite3.connect('japanese.db') as connection:
+        cursor = connection.cursor()
+
+        cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph,))
+        result = cursor.fetchone()
+
+        if not result:
+            return False
+
+        hieroglyph_id = result[0]
+
+        cursor.execute('''
+                    DELETE FROM usages WHERE hieroglyph_id = ?
+                ''', (hieroglyph_id,)
+                       )
+
+        cursor.execute('''
+            DELETE FROM hieroglyphs WHERE hieroglyph = ?
+        ''', (hieroglyph, )
+                       )
+
+        connection.commit()
+        return True
