@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, HTTPException # Request для формальности у меня в проекте
+from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
@@ -21,8 +21,8 @@ class UpdateUsage(BaseModel):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    database.init_database()
+async def lifespan(app: FastAPI): # менеджер жизненного цикла
+    await database.init_database()
     print('Инициализировали БД')
     yield
 
@@ -30,9 +30,9 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory='templates')
 
 
-@app.get('/')
-def read_root(request: Request):
-    all_words = database.get_all_hieroglyphs()
+@app.get('/') # создает обработчик HTTP GET запросов по корневому URL
+async def read_root(request: Request):
+    all_words = await database.get_all_hieroglyphs()
     return templates.TemplateResponse('index.html', {
         'request': request,
         'words': all_words
@@ -40,11 +40,11 @@ def read_root(request: Request):
 
 
 @app.post('/search')
-def search_hieroglyph(
+async def search_hieroglyph(
     request: Request,
     hieroglyph: str = Form(...)
 ):
-    searched_data = database.get_by_hieroglyph(hieroglyph)
+    searched_data = await database.get_by_hieroglyph(hieroglyph)
     if not searched_data:
         return templates.TemplateResponse("error.html", {
             'request': request,
@@ -59,12 +59,12 @@ def search_hieroglyph(
 
 
 @app.get('/add-hieroglyph')
-def add_hieroglyph_form(request: Request):
+async def add_hieroglyph_form(request: Request):
     return templates.TemplateResponse('add_hieroglyph.html', {'request': request})
 
 
 @app.post('/add-hieroglyph')
-def add_full_hieroglyph(
+async def add_full_hieroglyph(
         request: Request,
         hieroglyph: str = Form(...),
         usage: List[str] = Form(...),
@@ -100,7 +100,7 @@ def add_full_hieroglyph(
         }, status_code=400)
 
     try:
-        database.add_card(hieroglyph_data.hieroglyph, usages)
+        await database.add_card(hieroglyph_data.hieroglyph, usages)
         return RedirectResponse(url='/', status_code=303)
     except Exception as ex:
         return templates.TemplateResponse("error.html", {
@@ -111,12 +111,12 @@ def add_full_hieroglyph(
 
 
 @app.get('/add-usage')
-def add_usage_form(request: Request):
+async def add_usage_form(request: Request):
     return templates.TemplateResponse('add_usage.html', {'request': request})
 
 
 @app.post('/add-usage')
-def add_single_usage(
+async def add_single_usage(
         request: Request,
         hieroglyph: str = Form(...),
         usage: str = Form(...),
@@ -133,7 +133,7 @@ def add_single_usage(
         }, status_code=400)
 
 
-    success = database.add_one_usage(hieroglyph, usage_data.usage, usage_data.reading, usage_data.translation)
+    success = await database.add_one_usage(hieroglyph, usage_data.usage, usage_data.reading, usage_data.translation)
     if not success:
         return templates.TemplateResponse("error.html", {
             'request': request,
@@ -145,12 +145,12 @@ def add_single_usage(
 
 
 @app.get('/edit-usage')
-def edit_usage_form(request: Request):
+async def edit_usage_form(request: Request):
     return templates.TemplateResponse('edit_usage.html', {'request': request})
 
 
 @app.post('/edit-usage')
-def edit_usage(
+async def edit_usage(
     request: Request,
     usage_id: int = Form(...),
     new_reading: Optional[str] = Form(None),
@@ -172,7 +172,7 @@ def edit_usage(
             'back_url': '/edit-usage'
         }, status_code=400)
 
-    success = database.edit_card_by_usage_id(usage_id, update_data.new_reading, update_data.new_translation)
+    success = await database.edit_card_by_usage_id(usage_id, update_data.new_reading, update_data.new_translation)
 
     if not success:
         return templates.TemplateResponse("error.html", {
@@ -185,11 +185,11 @@ def edit_usage(
 
 
 @app.post('/delete-hieroglyph')
-def delete_hieroglyph_info(
+async def delete_hieroglyph_info(
         request: Request,
         hieroglyph: str = Form(...)
 ):
-    success = database.delete_hieroglyph(hieroglyph)
+    success = await database.delete_hieroglyph(hieroglyph)
 
     if not success:
         return templates.TemplateResponse("error.html", {

@@ -1,18 +1,18 @@
 from typing import List, Optional, Dict
-import sqlite3
+import aiosqlite
 
 
-def init_database():
-    with sqlite3.connect('japanese.db') as connection:
-        cursor = connection.cursor()
-        cursor.execute('''
+async def init_database():
+    async with aiosqlite.connect('japanese.db') as connection:
+        cursor = await connection.cursor()
+        await cursor.execute('''
             CREATE TABLE IF NOT EXISTS hieroglyphs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 hieroglyph TEXT NOT NULL UNIQUE
             )
         ''')
 
-        cursor.execute('''
+        await cursor.execute('''
             CREATE TABLE IF NOT EXISTS usages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 hieroglyph_id INTEGER NOT NULL,
@@ -22,32 +22,32 @@ def init_database():
                 FOREIGN KEY (hieroglyph_id) REFERENCES hieroglyphs (id)
             )
         ''')
-        connection.commit()
+        await connection.commit()
 
 
-def get_all_hieroglyphs():
-    with sqlite3.connect('japanese.db') as connection:
-        connection.row_factory = sqlite3.Row
-        cursor = connection.cursor()
-        cursor.execute('SELECT id, hieroglyph FROM hieroglyphs')
-        return [dict(row) for row in cursor.fetchall()]
+async def get_all_hieroglyphs():
+    async with aiosqlite.connect('japanese.db') as connection:
+        connection.row_factory = aiosqlite.Row
+        cursor = await connection.cursor()
+        await cursor.execute('SELECT id, hieroglyph FROM hieroglyphs')
+        return [dict(row) for row in await cursor.fetchall()]
 
 
-def get_by_hieroglyph(hieroglyph: str):
-    with sqlite3.connect('japanese.db') as connection:
-        connection.row_factory = sqlite3.Row # делает формат возвращаемых данных из бд не кортежем, а типо словариком (доступ по имени столбца)
-        cursor = connection.cursor()
-        cursor.execute('''
+async def get_by_hieroglyph(hieroglyph: str):
+    async with aiosqlite.connect('japanese.db') as connection:
+        connection.row_factory = aiosqlite.Row # делает формат возвращаемых данных из бд не кортежем, а типо словариком (доступ по имени столбца)
+        cursor = await connection.cursor()
+        await cursor.execute('''
             SELECT id, hieroglyph 
             FROM hieroglyphs WHERE hieroglyph = ?''',
             (hieroglyph, )
         )
-        fetched_data = cursor.fetchone()
+        fetched_data = await cursor.fetchone()
 
         if not fetched_data:
             return None
 
-        cursor.execute('''
+        await cursor.execute('''
             SELECT id, usage, reading, translation
             FROM usages 
             WHERE hieroglyph_id = ? 
@@ -55,7 +55,7 @@ def get_by_hieroglyph(hieroglyph: str):
         ''', (fetched_data['id'], )
         )
 
-        usages = [dict(row) for row in cursor.fetchall()] # список словарей, где ключи - айди варианта, вариант использования, чтение и перевод
+        usages = [dict(row) for row in await cursor.fetchall()] # список словарей, где ключи - айди варианта, вариант использования, чтение и перевод
 
         return {
             'hieroglyphs': fetched_data['hieroglyph'],
@@ -63,15 +63,15 @@ def get_by_hieroglyph(hieroglyph: str):
         }
 
 
-def add_card(hieroglyph: str, usages: List[Dict]):
-    with sqlite3.connect('japanese.db') as connection:
-        cursor = connection.cursor()
-        cursor.execute('INSERT OR IGNORE INTO hieroglyphs (hieroglyph) VALUES (?)',
+async def add_card(hieroglyph: str, usages: List[Dict]):
+    async with aiosqlite.connect('japanese.db') as connection:
+        cursor = await connection.cursor()
+        await cursor.execute('INSERT OR IGNORE INTO hieroglyphs (hieroglyph) VALUES (?)',
                        (hieroglyph, )
         )
 
-        cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph, ))
-        result = cursor.fetchone()
+        await cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph, ))
+        result = await cursor.fetchone()
 
         if not result:
             raise ValueError("Не удалось добавить или найти иероглиф")
@@ -79,90 +79,90 @@ def add_card(hieroglyph: str, usages: List[Dict]):
         hieroglyph_id = result[0] # эта функция возвращает кортеж, fetchall() - список кортежей
 
         for usage in usages:
-            cursor.execute(
+            await cursor.execute(
                 '''INSERT INTO usages
                 (hieroglyph_id, usage, reading, translation)
                 VALUES (?, ?, ?, ?)''', (hieroglyph_id, usage['usage'], usage['reading'], usage['translation'])
             )
 
-        connection.commit()
+        await connection.commit()
 
 
-def edit_card_by_usage_id(usage_id: int,
+async def edit_card_by_usage_id(usage_id: int,
                               new_reading: Optional[str] = None,
                               new_translation: Optional[str] = None):
     if not new_reading and not new_translation:
         return False
 
-    with sqlite3.connect('japanese.db') as connection:
-        cursor = connection.cursor()
-        cursor.execute('SELECT id FROM usages WHERE id = ?', (usage_id,))
-        if not cursor.fetchone():
+    async with aiosqlite.connect('japanese.db') as connection:
+        cursor = await connection.cursor()
+        await cursor.execute('SELECT id FROM usages WHERE id = ?', (usage_id,))
+        if not await cursor.fetchone():
             return False
 
         if new_reading:
-            cursor.execute('''
+            await cursor.execute('''
                 UPDATE usages SET reading = ? WHERE id = ?
             ''', (new_reading, usage_id)
             )
         if new_translation:
-            cursor.execute('''
+            await cursor.execute('''
                 UPDATE usages SET translation = ? WHERE id = ?
             ''', (new_translation, usage_id)
             )
 
-        connection.commit()
+        await connection.commit()
         return True
 
 
-def add_one_usage(hieroglyph: str,
+async def add_one_usage(hieroglyph: str,
                   new_usage: str,
                   reading: str,
                   translation: str):
-    with sqlite3.connect('japanese.db') as connection:
-        cursor = connection.cursor()
+    async with aiosqlite.connect('japanese.db') as connection:
+        cursor = await connection.cursor()
 
-        cursor.execute('''
+        await cursor.execute('''
             SELECT id FROM hieroglyphs WHERE hieroglyph = ?
         ''', (hieroglyph, )
                        )
-        result = cursor.fetchone()
+        result = await cursor.fetchone()
         if not result:
             return False
 
         hieroglyph_id = result[0]
 
-        cursor.execute('''
+        await cursor.execute('''
             INSERT INTO usages
                 (hieroglyph_id, usage, reading, translation)
                 VALUES (?, ?, ?, ?)
         ''', (hieroglyph_id, new_usage, reading, translation))
 
-        connection.commit()
+        await connection.commit()
         return True
 
 
-def delete_hieroglyph(hieroglyph: str):
-    with sqlite3.connect('japanese.db') as connection:
-        cursor = connection.cursor()
+async def delete_hieroglyph(hieroglyph: str):
+    async with aiosqlite.connect('japanese.db') as connection:
+        cursor = await connection.cursor()
 
-        cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph,))
-        result = cursor.fetchone()
+        await cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph,))
+        result = await cursor.fetchone()
 
         if not result:
             return False
 
         hieroglyph_id = result[0]
 
-        cursor.execute('''
+        await cursor.execute('''
                     DELETE FROM usages WHERE hieroglyph_id = ?
                 ''', (hieroglyph_id,)
                        )
 
-        cursor.execute('''
+        await cursor.execute('''
             DELETE FROM hieroglyphs WHERE hieroglyph = ?
         ''', (hieroglyph, )
                        )
 
-        connection.commit()
+        await connection.commit()
         return True
