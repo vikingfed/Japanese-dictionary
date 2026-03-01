@@ -2,8 +2,8 @@ from typing import List, Optional, Dict
 import aiosqlite
 
 
-async def init_database():
-    async with aiosqlite.connect('japanese.db') as connection:
+async def init_database(db_path = 'japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         cursor = await connection.cursor()
         await cursor.execute('''
             CREATE TABLE IF NOT EXISTS hieroglyphs (
@@ -22,19 +22,20 @@ async def init_database():
                 FOREIGN KEY (hieroglyph_id) REFERENCES hieroglyphs (id)
             )
         ''')
+
         await connection.commit()
 
 
-async def get_all_hieroglyphs():
-    async with aiosqlite.connect('japanese.db') as connection:
+async def get_all_hieroglyphs(db_path = 'japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         connection.row_factory = aiosqlite.Row
         cursor = await connection.cursor()
         await cursor.execute('SELECT id, hieroglyph FROM hieroglyphs')
         return [dict(row) for row in await cursor.fetchall()]
 
 
-async def get_by_hieroglyph(hieroglyph: str):
-    async with aiosqlite.connect('japanese.db') as connection:
+async def get_by_hieroglyph(hieroglyph: str, db_path = 'japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         connection.row_factory = aiosqlite.Row # делает формат возвращаемых данных из бд не кортежем, а типо словариком (доступ по имени столбца)
         cursor = await connection.cursor()
         await cursor.execute('''
@@ -63,8 +64,11 @@ async def get_by_hieroglyph(hieroglyph: str):
         }
 
 
-async def add_card(hieroglyph: str, usages: List[Dict]):
-    async with aiosqlite.connect('japanese.db') as connection:
+async def add_card(hieroglyph: str, usages: List[Dict], db_path = 'japanese.db'):
+    if not hieroglyph or not hieroglyph.strip(): # пустая строка
+        return False
+
+    async with aiosqlite.connect(db_path) as connection:
         cursor = await connection.cursor()
         await cursor.execute('INSERT OR IGNORE INTO hieroglyphs (hieroglyph) VALUES (?)',
                        (hieroglyph, )
@@ -72,9 +76,6 @@ async def add_card(hieroglyph: str, usages: List[Dict]):
 
         await cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph, ))
         result = await cursor.fetchone()
-
-        if not result:
-            raise ValueError("Не удалось добавить или найти иероглиф")
 
         hieroglyph_id = result[0] # эта функция возвращает кортеж, fetchall() - список кортежей
 
@@ -86,15 +87,14 @@ async def add_card(hieroglyph: str, usages: List[Dict]):
             )
 
         await connection.commit()
+        return True
 
 
 async def edit_card_by_usage_id(usage_id: int,
-                              new_reading: Optional[str] = None,
-                              new_translation: Optional[str] = None):
-    if not new_reading and not new_translation:
-        return False
-
-    async with aiosqlite.connect('japanese.db') as connection:
+                                new_reading: Optional[str] = None,
+                                new_translation: Optional[str] = None,
+                                db_path='japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         cursor = await connection.cursor()
         await cursor.execute('SELECT id FROM usages WHERE id = ?', (usage_id,))
         if not await cursor.fetchone():
@@ -116,12 +116,12 @@ async def edit_card_by_usage_id(usage_id: int,
 
 
 async def add_one_usage(hieroglyph: str,
-                  new_usage: str,
-                  reading: str,
-                  translation: str):
-    async with aiosqlite.connect('japanese.db') as connection:
+                        new_usage: str,
+                        reading: str,
+                        translation: str,
+                        db_path = 'japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         cursor = await connection.cursor()
-
         await cursor.execute('''
             SELECT id FROM hieroglyphs WHERE hieroglyph = ?
         ''', (hieroglyph, )
@@ -142,8 +142,8 @@ async def add_one_usage(hieroglyph: str,
         return True
 
 
-async def delete_hieroglyph(hieroglyph: str):
-    async with aiosqlite.connect('japanese.db') as connection:
+async def delete_hieroglyph(hieroglyph: str, db_path = 'japanese.db'):
+    async with aiosqlite.connect(db_path) as connection:
         cursor = await connection.cursor()
 
         await cursor.execute('SELECT id FROM hieroglyphs WHERE hieroglyph = ?', (hieroglyph,))

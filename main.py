@@ -33,10 +33,7 @@ templates = Jinja2Templates(directory='templates')
 @app.get('/') # создает обработчик HTTP GET запросов по корневому URL
 async def read_root(request: Request):
     all_words = await database.get_all_hieroglyphs()
-    return templates.TemplateResponse('index.html', {
-        'request': request,
-        'words': all_words
-    })
+    return templates.TemplateResponse(request, 'index.html', {'words': all_words})
 
 
 @app.post('/search')
@@ -46,21 +43,19 @@ async def search_hieroglyph(
 ):
     searched_data = await database.get_by_hieroglyph(hieroglyph)
     if not searched_data:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Иероглиф "{hieroglyph}" не найден в словаре',
             'back_url': '/'
         }, status_code=404)
 
-    return templates.TemplateResponse("search_result.html", {
-        'request': request,
+    return templates.TemplateResponse(request, "search_result.html", {
         'data': searched_data
     })
 
 
 @app.get('/add-hieroglyph')
 async def add_hieroglyph_form(request: Request):
-    return templates.TemplateResponse('add_hieroglyph.html', {'request': request})
+    return templates.TemplateResponse(request, 'add_hieroglyph.html', {})
 
 
 @app.post('/add-hieroglyph')
@@ -81,8 +76,7 @@ async def add_full_hieroglyph(
             })
 
     if not usages:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': 'Добавьте хотя бы один вариант использования',
             'back_url': '/add-hieroglyph'
         }, status_code=400)
@@ -93,18 +87,22 @@ async def add_full_hieroglyph(
             usages=[Usage(**u) for u in usages]
         )
     except Exception as ex:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Некорректные данные: {ex}',
             'back_url': '/add-hieroglyph'
         }, status_code=400)
 
     try:
-        await database.add_card(hieroglyph_data.hieroglyph, usages)
+        result = await database.add_card(hieroglyph_data.hieroglyph, usages)
+        if not result:
+            return templates.TemplateResponse(request, "error.html", {
+                'error_message': 'Не удалось добавить иероглиф в базу данных: введена пустая строка',
+                'back_url': '/add-hieroglyph'
+            }, status_code=400)
+
         return RedirectResponse(url='/', status_code=303)
     except Exception as ex:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Ошибка при добавлении в базу: {ex}',
             'back_url': '/add-hieroglyph'
         }, status_code=500)
@@ -112,7 +110,7 @@ async def add_full_hieroglyph(
 
 @app.get('/add-usage')
 async def add_usage_form(request: Request):
-    return templates.TemplateResponse('add_usage.html', {'request': request})
+    return templates.TemplateResponse(request, 'add_usage.html', {})
 
 
 @app.post('/add-usage')
@@ -126,8 +124,7 @@ async def add_single_usage(
     try:
         usage_data = Usage(usage=usage, reading=reading, translation=translation)
     except Exception as ex:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Некорректные данные: {ex}',
             'back_url': '/add-usage'
         }, status_code=400)
@@ -135,8 +132,7 @@ async def add_single_usage(
 
     success = await database.add_one_usage(hieroglyph, usage_data.usage, usage_data.reading, usage_data.translation)
     if not success:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Иероглиф "{hieroglyph}" не найден в словаре',
             'back_url': '/add-usage'
         }, status_code=404)
@@ -146,7 +142,7 @@ async def add_single_usage(
 
 @app.get('/edit-usage')
 async def edit_usage_form(request: Request):
-    return templates.TemplateResponse('edit_usage.html', {'request': request})
+    return templates.TemplateResponse(request, 'edit_usage.html', {})
 
 
 @app.post('/edit-usage')
@@ -156,9 +152,8 @@ async def edit_usage(
     new_reading: Optional[str] = Form(None),
     new_translation: Optional[str] = Form(None)
 ):
-    if not new_reading and not new_translation:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+    if not new_reading.strip() and not new_translation.strip():
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': 'Укажите хотя бы одно поле для изменения',
             'back_url': '/edit-usage'
         }, status_code=400)
@@ -166,8 +161,7 @@ async def edit_usage(
     try:
         update_data = UpdateUsage(new_reading=new_reading, new_translation=new_translation)
     except Exception as ex:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Некорректные данные: {ex}',
             'back_url': '/edit-usage'
         }, status_code=400)
@@ -175,8 +169,7 @@ async def edit_usage(
     success = await database.edit_card_by_usage_id(usage_id, update_data.new_reading, update_data.new_translation)
 
     if not success:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
+        return templates.TemplateResponse(request, "error.html", {
             'error_message': f'Вариант использования с ID {usage_id} не найден',
             'back_url': '/edit-usage'
         }, status_code=404)
@@ -192,9 +185,8 @@ async def delete_hieroglyph_info(
     success = await database.delete_hieroglyph(hieroglyph)
 
     if not success:
-        return templates.TemplateResponse("error.html", {
-            'request': request,
-            'error_message': f'Иероглиф "{hieroglyph}" не найден',
+        return templates.TemplateResponse(request, "error.html", {
+            'error_message': f'Иероглиф "{hieroglyph}" не найден в словаре',
             'back_url': '/'
         }, status_code=404)
 

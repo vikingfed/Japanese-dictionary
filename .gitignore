@@ -1,0 +1,13 @@
+# created by virtualenv automatically
+.venv/bin
+
+# IDE
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+
+# venv
+.venv/
