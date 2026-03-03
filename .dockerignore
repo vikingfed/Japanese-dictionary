@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+.idea
+.git
+.env
+tests
+pytest.ini
+.coverage
+*.db
+.DS_Store
+
